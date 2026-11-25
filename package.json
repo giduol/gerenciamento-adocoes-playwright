@@ -1,0 +1,17 @@
+{
+  "name": "gerenciamento-adocoes-playwright",
+  "version": "1.0.0",
+  "description": "Testes end-to-end (Playwright) do Gerenciamento de Adoções",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "cross-env AMBIENTE=local playwright test",
+    "test:ui": "playwright test --ui",
+    "test:ui:local": "cross-env AMBIENTE=local playwright test --ui",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "cross-env": "^10.1.0"
+  },
+  "private": true
+}

@@ -1,0 +1,9 @@
+node_modules/
+
+# Credenciais locais (nunca commitar)
+.env
+
+# Resultados das execuções
+test-results/
+playwright-report/
+blob-report/
