@@ -1,5 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const { exigirCredenciais, login, nomeDeTeste, requisicaoApi, evidencia } = require('./support/helpers');
+const { exigirCredenciais, nomeDeTeste, requisicaoApi, evidencia } = require('./support/helpers');
 
 test.describe('Cadastro de animais', () => {
   // Todos os testes daqui precisam de login, e o login não funciona no WebKit
@@ -13,7 +13,6 @@ test.describe('Cadastro de animais', () => {
   test.beforeEach(async ({ page }) => {
     exigirCredenciais();
     criados = [];
-    await login(page);
     await page.goto('/cadastro-animais');
   });
 

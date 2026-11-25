@@ -3,6 +3,9 @@ node_modules/
 # Credenciais locais (nunca commitar)
 .env
 
+# Sessão do usuário de testes, criada pelo tests/auth.setup.js
+.auth/
+
 # Resultados das execuções
 test-results/
 playwright-report/

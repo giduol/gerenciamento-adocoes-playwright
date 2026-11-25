@@ -26,16 +26,11 @@ jobs:
       - name: Instalar os navegadores (Chromium, Chrome, Edge, Firefox e WebKit)
         run: npx playwright install --with-deps chromium chrome msedge firefox webkit
 
+      # O relatório HTML não é publicado: traces e contexto de erro registram o que é
+      # digitado nos campos, inclusive a senha, e o repositório é público. O log mostra
+      # qual teste falhou e o erro; prints e trace, só rodando localmente.
       - name: Rodar os testes
         run: npm test
         env:
           USUARIO: ${{ secrets.USUARIO }}
           SENHA: ${{ secrets.SENHA }}
-
-      - name: Publicar o relatório
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 14

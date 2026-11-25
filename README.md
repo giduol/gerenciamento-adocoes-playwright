@@ -47,11 +47,11 @@ O workflow `.github/workflows/playwright.yml` roda os testes contra produção a
 
 As credenciais vêm dos secrets `USUARIO` e `SENHA` do repositório (Settings → Secrets and variables → Actions). Para atualizá-los a partir do `.env`: `gh secret set -f .env`.
 
-O relatório de cada execução fica disponível para download na página da execução, em **Artifacts**.
+A pipeline **não publica o relatório HTML**. Traces e contexto de erro registram o que é digitado nos campos, inclusive a senha, e os artifacts de um repositório público podem ser baixados por qualquer pessoa com conta no GitHub. O log da execução mostra qual teste falhou e o erro; para ver prints e trace, rode o teste localmente.
 
 ## Relatório
 
-Toda execução gera `playwright-report/index.html`, com o resultado de cada teste. O título mostra o ambiente.
+Toda execução local gera `playwright-report/index.html`, com o resultado de cada teste. O título mostra o ambiente.
 
 - **Falhas**: o Playwright anexa o print da tela e o trace (passo a passo navegável, com rede e console) ao teste que falhou.
 - **Evidências**: as telas importantes são registradas com `evidencia(page, 'nome')`, que anexa o print da página inteira e a URL acessada.
@@ -62,13 +62,18 @@ O relatório é refeito a cada execução e não vai para o Git. Abra com `npm r
 
 ```
 tests/
-  login.spec.js     login e rotas protegidas
-  animais.spec.js   cadastro de animais
+  auth.setup.js               faz login uma vez e salva a sessão em .auth/sessao.json
+  login.spec.js               login e rotas protegidas
+  animais.spec.js             cadastro de animais
+  relatorio-animais.spec.js   relatório de animais
   support/
-    helpers.js      login(), requisicaoApi(), nomeDeTeste(), preencherLogin(), exigirCredenciais() e evidencia()
+    helpers.js                login(), requisicaoApi(), nomeDeTeste(), preencherLogin(), exigirCredenciais() e evidencia()
+    sessao.js                 caminho do arquivo da sessão
 playwright.config.js
 ```
 
+Os testes começam **já logados**: o projeto `setup` (`tests/auth.setup.js`) faz login uma única vez pela API, antes dos navegadores, e todos reaproveitam a sessão. Com cada teste fazendo o próprio login em paralelo, o backend demorava mais de 10 s para responder e os testes falhavam por tempo. Os testes de `login.spec.js` são a exceção: começam sem sessão, porque testam justamente o login.
+
 Os testes que criam registros em produção usam `nomeDeTeste()`, que gera nomes como `[E2E] Lua 1764078000000-123`, e apagam o que criaram pela API no final do teste (`afterEach`).
 
-`login(page)` faz o login pela API (CSRF e depois login), e os cookies ficam no navegador do teste. Use-o em testes que não são da tela de login, para não repetir o formulário em todos.
+`login(page)` faz o login pela API (CSRF e depois login), e os cookies ficam no navegador do teste. Como os testes já começam logados, só é preciso em testes que começam sem sessão.

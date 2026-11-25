@@ -23,16 +23,33 @@ if (!baseURL) {
   );
 }
 
+// Sessão do usuário de testes, criada uma vez por execução pelo projeto "setup"
+// (tests/auth.setup.js) e reaproveitada por todos os testes.
+const { SESSAO } = require('./tests/support/sessao');
+
+// Todos os navegadores começam já logados, com a sessão do setup.
+const navegador = (dispositivo, extras = {}) => ({
+  dependencies: ['setup'],
+  use: { ...devices[dispositivo], viewport: { width: 1366, height: 768 }, storageState: SESSAO, ...extras },
+});
+
 module.exports = defineConfig({
   testDir: './tests',
   fullyParallel: true,
+  // Os testes rodam contra produção, numa instância pequena: muitos em paralelo deixam o
+  // backend lento para todo mundo. Na CI, o padrão do Playwright (metade dos núcleos) já é baixo.
+  workers: process.env.CI ? undefined : 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   timeout: 30000,
   expect: { timeout: 10000 },
 
-  // Relatório HTML em playwright-report/index.html, com os prints anexados.
-  reporter: [['list'], ['html', { open: 'never', title: `Gerenciamento de Adoções - E2E (${ambiente})` }]],
+  // Local: relatório HTML em playwright-report/index.html, com prints e trace das falhas.
+  // CI: só o log. O relatório não é gerado nem publicado, porque traces e contexto de erro
+  // registram o que é digitado nos campos, inclusive a senha, e o repositório é público.
+  reporter: process.env.CI
+    ? [['list'], ['github']]
+    : [['list'], ['html', { open: 'never', title: `Gerenciamento de Adoções - E2E (${ambiente})` }]],
 
   use: {
     baseURL,
@@ -42,27 +59,13 @@ module.exports = defineConfig({
   },
 
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } },
-    },
+    { name: 'setup', testMatch: /auth\.setup\.js/ },
+    { name: 'chromium', ...navegador('Desktop Chrome') },
     // Navegadores instalados de verdade (Google Chrome e Microsoft Edge), não o Chromium do Playwright.
-    {
-      name: 'chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1366, height: 768 } },
-    },
-    {
-      name: 'edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: { width: 1366, height: 768 } },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'], viewport: { width: 1366, height: 768 } },
-    },
+    { name: 'chrome', ...navegador('Desktop Chrome', { channel: 'chrome' }) },
+    { name: 'edge', ...navegador('Desktop Edge', { channel: 'msedge' }) },
+    { name: 'firefox', ...navegador('Desktop Firefox') },
     // WebKit é o motor do Safari.
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'], viewport: { width: 1366, height: 768 } },
-    },
+    { name: 'webkit', ...navegador('Desktop Safari') },
   ],
 });

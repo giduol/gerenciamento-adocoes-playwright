@@ -5,6 +5,10 @@ function credenciais() {
   return { usuario: process.env.USUARIO, senha: process.env.SENHA };
 }
 
+// Tempo de espera pela resposta do login. O backend confere a senha com BCrypt numa instância
+// pequena: um login leva de 1,5 a 3 s sozinho, e passa de 10 s com vários ao mesmo tempo.
+const TEMPO_LOGIN = 30000;
+
 // Ignora o teste quando as credenciais não estão configuradas.
 function exigirCredenciais() {
   const { usuario, senha } = credenciais();
@@ -27,9 +31,11 @@ function falhaEsperadaNoWebKit({ excetoNoWindows = false } = {}) {
 
 // Chama a API com os cookies do navegador do teste, como o front faz:
 // pega o token CSRF e o envia no header. Ex.: requisicaoApi(page, 'DELETE', '/api/animais/1').
-async function requisicaoApi(page, metodo, caminho, dados) {
-  const csrf = await (await page.request.get('/api/auth/csrf')).json();
-  return page.request.fetch(caminho, {
+// Aceita uma página (usa os cookies dela) ou um APIRequestContext (fixture "request").
+async function requisicaoApi(alvo, metodo, caminho, dados) {
+  const api = alvo.request ?? alvo;
+  const csrf = await (await api.get('/api/auth/csrf')).json();
+  return api.fetch(caminho, {
     method: metodo,
     headers: { [csrf.headerName]: csrf.token },
     data: dados,
@@ -37,13 +43,14 @@ async function requisicaoApi(page, metodo, caminho, dados) {
 }
 
 // Faz login pela API (mais rápido que pela tela). Os cookies ficam no navegador do teste.
-async function login(page) {
+// Os testes já começam logados (veja tests/auth.setup.js); use só onde o teste começa sem sessão.
+async function login(alvo) {
   const { usuario, senha } = credenciais();
   if (!usuario || !senha) {
     throw new Error('Credenciais não configuradas. Crie o arquivo .env (veja .env.example).');
   }
 
-  const resposta = await requisicaoApi(page, 'POST', '/api/auth/login', { username: usuario, password: senha });
+  const resposta = await requisicaoApi(alvo, 'POST', '/api/auth/login', { username: usuario, password: senha });
   if (!resposta.ok()) {
     throw new Error(`Login pela API falhou: HTTP ${resposta.status()}`);
   }
@@ -71,6 +78,7 @@ async function evidencia(page, nome = 'evidência') {
 }
 
 module.exports = {
+  TEMPO_LOGIN,
   credenciais,
   exigirCredenciais,
   falhaEsperadaNoWebKit,

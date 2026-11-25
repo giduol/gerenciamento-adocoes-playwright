@@ -1,5 +1,6 @@
 const { test, expect } = require('@playwright/test');
 const {
+  TEMPO_LOGIN,
   exigirCredenciais,
   credenciais,
   falhaEsperadaNoWebKit,
@@ -7,6 +8,12 @@ const {
   preencherLogin,
   evidencia,
 } = require('./support/helpers');
+
+// Estes testes começam sem sessão (os outros usam a do tests/auth.setup.js).
+test.use({ storageState: { cookies: [], origins: [] } });
+
+// O login é lento no backend (veja TEMPO_LOGIN): os testes deste arquivo têm mais tempo.
+test.describe.configure({ timeout: 60000 });
 
 test.describe('Login', () => {
   test.beforeEach(async ({ page }) => {
@@ -32,7 +39,7 @@ test.describe('Login', () => {
     falhaEsperadaNoWebKit();
     await preencherLogin(page, 'usuario-inexistente-playwright', 'senha-errada');
 
-    await expect(page.getByRole('alert')).toHaveText('Usuário ou senha inválidos.');
+    await expect(page.getByRole('alert')).toHaveText('Usuário ou senha inválidos.', { timeout: TEMPO_LOGIN });
     await expect(page).toHaveURL(/\/login$/);
   });
 
@@ -42,7 +49,7 @@ test.describe('Login', () => {
     const { usuario, senha } = credenciais();
 
     await preencherLogin(page, usuario, senha);
-    await expect(page).toHaveURL((url) => url.pathname === '/');
+    await expect(page).toHaveURL((url) => url.pathname === '/', { timeout: TEMPO_LOGIN });
     await evidencia(page, 'entrou no sistema');
   });
 });
