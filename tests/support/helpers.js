@@ -77,7 +77,55 @@ async function evidencia(page, nome = 'evidência') {
   });
 }
 
+const escaparHtml = (texto) =>
+  String(texto).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+// Fotografa um HTML montado pelo teste numa aba à parte (mesma sessão) e anexa ao relatório.
+async function anexarHtmlComoPrint(page, nome, html) {
+  const aba = await page.context().newPage();
+  try {
+    await aba.setViewportSize({ width: 1100, height: 600 });
+    await aba.setContent(`<!doctype html><meta charset="utf-8">
+      <style>
+        body { font: 14px/1.45 system-ui, sans-serif; margin: 24px; color: #1d2430; background: #fff; }
+        h1 { font-size: 18px; margin: 0 0 4px; } .meta { color: #5b6573; margin: 0 0 16px; }
+        pre { background: #f5f7fa; border: 1px solid #dde2ea; border-radius: 6px; padding: 16px; margin: 0;
+              font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #dde2ea; padding: 6px 10px; text-align: left; vertical-align: top; }
+        th { background: #f5f7fa; } td.api { font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+        tr.ok td.status { color: #1a7f37; font-weight: 600; } tr.erro td { background: #fdecea; }
+        caption { text-align: left; font-weight: 600; padding: 4px 0 8px; }
+      </style>${html}`);
+    await test.info().attach(nome, { body: await aba.screenshot({ fullPage: true }), contentType: 'image/png' });
+  } finally {
+    await aba.close();
+  }
+}
+
+// Anexa ao relatório a resposta de uma chamada à API: o JSON bruto (para conferir) e um print dele.
+async function evidenciaApi(page, nome, resposta) {
+  const corpo = await resposta.json();
+  const metodo = resposta.request().method();
+  const url = resposta.url();
+  await test.info().attach(`${nome} - resposta da API (JSON)`, {
+    body: JSON.stringify(corpo, null, 2),
+    contentType: 'application/json',
+  });
+  await anexarHtmlComoPrint(
+    page,
+    `${nome} - resposta da API`,
+    `<h1>Resposta do backend</h1>
+     <p class="meta">${escaparHtml(metodo)} ${escaparHtml(url)} → HTTP ${resposta.status()}</p>
+     <pre>${escaparHtml(JSON.stringify(corpo, null, 2))}</pre>`,
+  );
+  return corpo;
+}
+
 module.exports = {
+  anexarHtmlComoPrint,
+  escaparHtml,
+  evidenciaApi,
   TEMPO_LOGIN,
   credenciais,
   exigirCredenciais,
