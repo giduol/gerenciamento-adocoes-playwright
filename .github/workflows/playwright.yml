@@ -23,8 +23,8 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      - name: Instalar o navegador
-        run: npx playwright install --with-deps chromium
+      - name: Instalar os navegadores (Chromium, Chrome e Edge)
+        run: npx playwright install --with-deps chromium chrome msedge
 
       - name: Rodar os testes
         run: npm test

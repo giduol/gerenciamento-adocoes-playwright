@@ -33,6 +33,8 @@ Para rodar contra o front local, suba o front antes com `npm start` no projeto `
 
 Os ambientes ficam em `playwright.config.js` (constante `AMBIENTES`), escolhidos pela variável `AMBIENTE`.
 
+Cada teste roda em três navegadores: `chromium` (o do Playwright), `chrome` (Google Chrome) e `edge` (Microsoft Edge). Chrome e Edge precisam estar instalados na máquina. Para rodar em um só, use `--project`, por exemplo `npm test -- --project=edge`.
+
 ## GitHub Actions
 
 O workflow `.github/workflows/playwright.yml` roda os testes contra produção a cada push e pull request na `main`. Também dá para rodar manualmente na aba **Actions** (botão **Run workflow**).

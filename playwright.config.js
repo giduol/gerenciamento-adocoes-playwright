@@ -46,5 +46,14 @@ module.exports = defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1366, height: 768 } },
     },
+    // Navegadores instalados de verdade (Google Chrome e Microsoft Edge), não o Chromium do Playwright.
+    {
+      name: 'chrome',
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1366, height: 768 } },
+    },
+    {
+      name: 'edge',
+      use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: { width: 1366, height: 768 } },
+    },
   ],
 });
