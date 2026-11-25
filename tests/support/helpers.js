@@ -25,23 +25,33 @@ function falhaEsperadaNoWebKit({ excetoNoWindows = false } = {}) {
   );
 }
 
+// Chama a API com os cookies do navegador do teste, como o front faz:
+// pega o token CSRF e o envia no header. Ex.: requisicaoApi(page, 'DELETE', '/api/animais/1').
+async function requisicaoApi(page, metodo, caminho, dados) {
+  const csrf = await (await page.request.get('/api/auth/csrf')).json();
+  return page.request.fetch(caminho, {
+    method: metodo,
+    headers: { [csrf.headerName]: csrf.token },
+    data: dados,
+  });
+}
+
 // Faz login pela API (mais rápido que pela tela). Os cookies ficam no navegador do teste.
-// Segue o mesmo fluxo do front: pega o token CSRF e faz o login enviando o token no header.
 async function login(page) {
   const { usuario, senha } = credenciais();
   if (!usuario || !senha) {
     throw new Error('Credenciais não configuradas. Crie o arquivo .env (veja .env.example).');
   }
 
-  const csrf = await (await page.request.get('/api/auth/csrf')).json();
-  const resposta = await page.request.post('/api/auth/login', {
-    headers: { [csrf.headerName]: csrf.token },
-    data: { username: usuario, password: senha },
-  });
-
+  const resposta = await requisicaoApi(page, 'POST', '/api/auth/login', { username: usuario, password: senha });
   if (!resposta.ok()) {
     throw new Error(`Login pela API falhou: HTTP ${resposta.status()}`);
   }
+}
+
+// Nome único para registros criados pelos testes, fácil de achar no banco: "[E2E] Lua 1764078000000-123".
+function nomeDeTeste(nome) {
+  return `[E2E] ${nome} ${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
 
 // Preenche e envia o formulário da tela de login.
@@ -60,4 +70,13 @@ async function evidencia(page, nome = 'evidência') {
   });
 }
 
-module.exports = { credenciais, exigirCredenciais, falhaEsperadaNoWebKit, login, preencherLogin, evidencia };
+module.exports = {
+  credenciais,
+  exigirCredenciais,
+  falhaEsperadaNoWebKit,
+  requisicaoApi,
+  login,
+  nomeDeTeste,
+  preencherLogin,
+  evidencia,
+};

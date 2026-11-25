@@ -62,10 +62,13 @@ O relatório é refeito a cada execução e não vai para o Git. Abra com `npm r
 
 ```
 tests/
-  login.spec.js     testes (*.spec.js)
+  login.spec.js     login e rotas protegidas
+  animais.spec.js   cadastro de animais
   support/
-    helpers.js      login(), preencherLogin(), exigirCredenciais() e evidencia()
+    helpers.js      login(), requisicaoApi(), nomeDeTeste(), preencherLogin(), exigirCredenciais() e evidencia()
 playwright.config.js
 ```
+
+Os testes que criam registros em produção usam `nomeDeTeste()`, que gera nomes como `[E2E] Lua 1764078000000-123`, e apagam o que criaram pela API no final do teste (`afterEach`).
 
 `login(page)` faz o login pela API (CSRF e depois login), e os cookies ficam no navegador do teste. Use-o em testes que não são da tela de login, para não repetir o formulário em todos.
