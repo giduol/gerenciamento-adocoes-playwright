@@ -9,6 +9,47 @@ function campo(cartao, rotulo) {
   return cartao.locator('.record-field').filter({ has: cartao.page().getByText(rotulo, { exact: true }) }).locator('dd');
 }
 
+const doisDigitos = (n) => String(n).padStart(2, '0');
+
+// Texto que a tela deve mostrar para um campo de texto da API.
+function textoEsperado(valor) {
+  return valor ? String(valor) : 'Não informado';
+}
+
+// Texto que a tela deve mostrar para uma data da API: "15/04/2023" ou, com hora,
+// "18/11/2026, 18:05:39". A API (Java LocalDate/LocalDateTime) devolve as datas como
+// lista de números, [2023, 4, 15] ou [2026, 11, 18, 18, 5, 39, 29412000], ou como texto
+// "2023-04-15" / "2026-11-18T18:05:39.029".
+function dataEsperada(valor) {
+  if (valor === null || valor === undefined || valor === '') return 'Não informado';
+
+  let partes;
+  if (Array.isArray(valor)) {
+    partes = valor;
+  } else {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?)?$/.exec(String(valor));
+    if (!m) throw new Error(`Formato de data da API não previsto pelo teste: ${JSON.stringify(valor)}`);
+    partes = m.slice(1).filter((p) => p !== undefined).map(Number);
+  }
+
+  const [ano, mes, dia, hora, minuto, segundo = 0] = partes;
+  const data = `${doisDigitos(dia)}/${doisDigitos(mes)}/${ano}`;
+  if (partes.length === 3) return data;
+  if (partes.length >= 5) return `${data}, ${doisDigitos(hora)}:${doisDigitos(minuto)}:${doisDigitos(segundo)}`;
+  throw new Error(`Formato de data da API não previsto pelo teste: ${JSON.stringify(valor)}`);
+}
+
+// Confere todos os campos de um cartão com os dados do animal vindos da API.
+async function conferirCartao(cartao, animal) {
+  await expect(cartao.getByRole('heading', { level: 2 })).toHaveText(animal.name);
+  await expect(campo(cartao, 'Espécie')).toHaveText(textoEsperado(animal.species));
+  await expect(campo(cartao, 'Data de nascimento')).toHaveText(dataEsperada(animal.birthDate));
+  await expect(campo(cartao, 'Raça')).toHaveText(textoEsperado(animal.breed));
+  await expect(campo(cartao, 'Características especiais')).toHaveText(textoEsperado(animal.specialCharacteristics));
+  await expect(campo(cartao, 'Doenças conhecidas')).toHaveText(textoEsperado(animal.knownDiseases));
+  await expect(campo(cartao, 'Data de cadastro')).toHaveText(dataEsperada(animal.registrationDate));
+}
+
 function cartaoDoAnimal(page, nome) {
   return page.getByRole('article').filter({ has: page.getByRole('heading', { level: 2, name: nome, exact: true }) });
 }
@@ -32,7 +73,7 @@ test.describe('Relatório de animais', () => {
     }
   });
 
-  test('lista todos os animais retornados pela API', async ({ page }) => {
+  test('mostra todos os animais com os mesmos dados da API', async ({ page }) => {
     const [resposta] = await Promise.all([page.waitForResponse(listagemDeAnimais), page.goto('/relatorio-animais')]);
     const animais = await resposta.json();
 
@@ -46,7 +87,7 @@ test.describe('Relatório de animais', () => {
       await expect(page.getByRole('region', { name: 'Animais cadastrados' }).getByRole('article')).toHaveCount(animais.length);
       for (const animal of animais) {
         const cartao = page.getByRole('article').filter({ has: page.getByText(`ANIMAL ${animal.id}`, { exact: true }) });
-        await expect(cartao.getByRole('heading', { level: 2 })).toHaveText(animal.name);
+        await test.step(`ANIMAL ${animal.id}: ${animal.name}`, () => conferirCartao(cartao, animal));
       }
     }
     await evidencia(page, 'relatório de animais');
@@ -66,17 +107,22 @@ test.describe('Relatório de animais', () => {
     const { id } = await criacao.json();
     criados.push(id);
 
-    await page.goto('/relatorio-animais');
-    const cartao = cartaoDoAnimal(page, animal.name);
+    const [resposta] = await Promise.all([page.waitForResponse(listagemDeAnimais), page.goto('/relatorio-animais')]);
+    const daApi = (await resposta.json()).find((a) => a.id === id);
+    expect(daApi, `A API deve listar o animal ${id}`).toBeTruthy();
 
+    const cartao = cartaoDoAnimal(page, animal.name);
     await expect(cartao).toBeVisible();
     await expect(cartao).toContainText(`ANIMAL ${id}`);
+
+    // Valores fixos: o que foi cadastrado, com "Não informado" nos campos vazios.
     await expect(campo(cartao, 'Espécie')).toHaveText('Gato');
     await expect(campo(cartao, 'Data de nascimento')).toHaveText('03/12/2021');
     await expect(campo(cartao, 'Raça')).toHaveText('Siamês');
     await expect(campo(cartao, 'Características especiais')).toHaveText('Não informado');
     await expect(campo(cartao, 'Doenças conhecidas')).toHaveText('Não informado');
-    await expect(campo(cartao, 'Data de cadastro')).toHaveText(/^\d{2}\/\d{2}\/\d{4}/);
+    // A data de cadastro é gerada pelo backend: confere com a que a API devolveu.
+    await expect(campo(cartao, 'Data de cadastro')).toHaveText(dataEsperada(daApi.registrationDate));
 
     await cartao.scrollIntoViewIfNeeded();
     await evidencia(page, 'dados do animal');
