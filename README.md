@@ -33,6 +33,14 @@ Para rodar contra o front local, suba o front antes com `npm start` no projeto `
 
 Os ambientes ficam em `playwright.config.js` (constante `AMBIENTES`), escolhidos pela variável `AMBIENTE`.
 
+## GitHub Actions
+
+O workflow `.github/workflows/playwright.yml` roda os testes contra produção a cada push e pull request na `main`. Também dá para rodar manualmente na aba **Actions** (botão **Run workflow**).
+
+As credenciais vêm dos secrets `USUARIO` e `SENHA` do repositório (Settings → Secrets and variables → Actions). Para atualizá-los a partir do `.env`: `gh secret set -f .env`.
+
+O relatório de cada execução fica disponível para download na página da execução, em **Artifacts**.
+
 ## Relatório
 
 Toda execução gera `playwright-report/index.html`, com o resultado de cada teste. O título mostra o ambiente.

@@ -1,0 +1,41 @@
+name: Testes E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Instalar o navegador
+        run: npx playwright install --with-deps chromium
+
+      - name: Rodar os testes
+        run: npm test
+        env:
+          USUARIO: ${{ secrets.USUARIO }}
+          SENHA: ${{ secrets.SENHA }}
+
+      - name: Publicar o relatório
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
