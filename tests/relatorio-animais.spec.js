@@ -1,5 +1,13 @@
 const { test, expect } = require('@playwright/test');
-const { exigirCredenciais, nomeDeTeste, requisicaoApi, evidencia } = require('./support/helpers');
+const {
+  anexarHtmlComoPrint,
+  escaparHtml,
+  evidenciaApi,
+  exigirCredenciais,
+  nomeDeTeste,
+  requisicaoApi,
+  evidencia,
+} = require('./support/helpers');
 
 // Resposta da API de animais pedida pela própria tela.
 const listagemDeAnimais = (r) => r.request().method() === 'GET' && new URL(r.url()).pathname === '/api/animais';
@@ -39,15 +47,45 @@ function dataEsperada(valor) {
   throw new Error(`Formato de data da API não previsto pelo teste: ${JSON.stringify(valor)}`);
 }
 
+// Campos do cartão: rótulo na tela, chave na API, como a tela formata o valor e onde ele aparece.
+const CAMPOS = [
+  { rotulo: 'Nome', chave: 'name', formatar: String, naTela: (c) => c.getByRole('heading', { level: 2 }) },
+  { rotulo: 'Espécie', chave: 'species', formatar: textoEsperado },
+  { rotulo: 'Data de nascimento', chave: 'birthDate', formatar: dataEsperada },
+  { rotulo: 'Raça', chave: 'breed', formatar: textoEsperado },
+  { rotulo: 'Características especiais', chave: 'specialCharacteristics', formatar: textoEsperado },
+  { rotulo: 'Doenças conhecidas', chave: 'knownDiseases', formatar: textoEsperado },
+  { rotulo: 'Data de cadastro', chave: 'registrationDate', formatar: dataEsperada },
+].map((c) => ({ naTela: (cartao) => campo(cartao, c.rotulo), ...c }));
+
 // Confere todos os campos de um cartão com os dados do animal vindos da API.
 async function conferirCartao(cartao, animal) {
-  await expect(cartao.getByRole('heading', { level: 2 })).toHaveText(animal.name);
-  await expect(campo(cartao, 'Espécie')).toHaveText(textoEsperado(animal.species));
-  await expect(campo(cartao, 'Data de nascimento')).toHaveText(dataEsperada(animal.birthDate));
-  await expect(campo(cartao, 'Raça')).toHaveText(textoEsperado(animal.breed));
-  await expect(campo(cartao, 'Características especiais')).toHaveText(textoEsperado(animal.specialCharacteristics));
-  await expect(campo(cartao, 'Doenças conhecidas')).toHaveText(textoEsperado(animal.knownDiseases));
-  await expect(campo(cartao, 'Data de cadastro')).toHaveText(dataEsperada(animal.registrationDate));
+  for (const c of CAMPOS) {
+    await expect(c.naTela(cartao), c.rotulo).toHaveText(c.formatar(animal[c.chave]));
+  }
+}
+
+// Evidência "API × tela": para cada animal, o valor que a API devolveu e o texto lido da
+// tela no mesmo momento, lado a lado. Anexada antes das conferências, para estar no
+// relatório também quando algum campo não bate.
+async function evidenciaApiXTela(page, nome, animais, cartaoDe) {
+  const normalizar = (t) => t.replace(/\s+/g, ' ').trim();
+  let html = `<h1>API × tela</h1>
+    <p class="meta">Valor devolvido pelo backend (GET /api/animais) e texto lido da tela, campo a campo.</p>`;
+  for (const animal of animais) {
+    const cartao = cartaoDe(animal);
+    let linhas = '';
+    for (const c of CAMPOS) {
+      const tela = normalizar(await c.naTela(cartao).innerText());
+      const igual = tela === normalizar(c.formatar(animal[c.chave]));
+      linhas += `<tr class="${igual ? 'ok' : 'erro'}">
+        <td>${escaparHtml(c.rotulo)}</td><td class="api">${escaparHtml(JSON.stringify(animal[c.chave]))}</td>
+        <td>${escaparHtml(tela)}</td><td class="status">${igual ? '✓ igual' : '✗ diferente'}</td></tr>`;
+    }
+    html += `<table><caption>ANIMAL ${escaparHtml(animal.id)}</caption>
+      <tr><th>Campo</th><th>Na API</th><th>Na tela</th><th></th></tr>${linhas}</table>`;
+  }
+  await anexarHtmlComoPrint(page, `${nome} - API × tela`, html);
 }
 
 function cartaoDoAnimal(page, nome) {
@@ -75,7 +113,7 @@ test.describe('Relatório de animais', () => {
 
   test('mostra todos os animais com os mesmos dados da API', async ({ page }) => {
     const [resposta] = await Promise.all([page.waitForResponse(listagemDeAnimais), page.goto('/relatorio-animais')]);
-    const animais = await resposta.json();
+    const animais = await evidenciaApi(page, 'relatório de animais', resposta);
 
     await expect(page.getByRole('heading', { level: 1, name: 'Relatório de animais' })).toBeVisible();
 
@@ -83,14 +121,20 @@ test.describe('Relatório de animais', () => {
     // animais ao mesmo tempo.
     if (animais.length === 0) {
       await expect(page.getByText('Nenhum animal foi encontrado.')).toBeVisible();
-    } else {
-      await expect(page.getByRole('region', { name: 'Animais cadastrados' }).getByRole('article')).toHaveCount(animais.length);
-      for (const animal of animais) {
-        const cartao = page.getByRole('article').filter({ has: page.getByText(`ANIMAL ${animal.id}`, { exact: true }) });
-        await test.step(`ANIMAL ${animal.id}: ${animal.name}`, () => conferirCartao(cartao, animal));
-      }
+      await evidencia(page, 'relatório de animais');
+      return;
     }
+
+    await expect(page.getByRole('region', { name: 'Animais cadastrados' }).getByRole('article')).toHaveCount(animais.length);
     await evidencia(page, 'relatório de animais');
+
+    const cartaoDe = (animal) =>
+      page.getByRole('article').filter({ has: page.getByText(`ANIMAL ${animal.id}`, { exact: true }) });
+    await evidenciaApiXTela(page, 'relatório de animais', animais, cartaoDe);
+
+    for (const animal of animais) {
+      await test.step(`ANIMAL ${animal.id}: ${animal.name}`, () => conferirCartao(cartaoDe(animal), animal));
+    }
   });
 
   test('mostra os dados do animal, com "Não informado" nos campos vazios', async ({ page }) => {
@@ -114,6 +158,13 @@ test.describe('Relatório de animais', () => {
     const cartao = cartaoDoAnimal(page, animal.name);
     await expect(cartao).toBeVisible();
     await expect(cartao).toContainText(`ANIMAL ${id}`);
+
+    // Evidências: o JSON deste animal na resposta da API e a comparação campo a campo com a tela.
+    await test.info().attach('dados do animal - resposta da API (JSON)', {
+      body: JSON.stringify(daApi, null, 2),
+      contentType: 'application/json',
+    });
+    await evidenciaApiXTela(page, 'dados do animal', [daApi], () => cartao);
 
     // Valores fixos: o que foi cadastrado, com "Não informado" nos campos vazios.
     await expect(campo(cartao, 'Espécie')).toHaveText('Gato');
