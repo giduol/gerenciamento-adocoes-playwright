@@ -55,5 +55,14 @@ module.exports = defineConfig({
       name: 'edge',
       use: { ...devices['Desktop Edge'], channel: 'msedge', viewport: { width: 1366, height: 768 } },
     },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1366, height: 768 } },
+    },
+    // WebKit é o motor do Safari.
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'], viewport: { width: 1366, height: 768 } },
+    },
   ],
 });

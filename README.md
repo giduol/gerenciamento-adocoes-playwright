@@ -6,7 +6,7 @@ Testes end-to-end do [Gerenciamento de Adoções](https://github.com/giduol/gere
 
 ```bash
 npm install
-npx playwright install chromium
+npx playwright install chromium firefox webkit
 ```
 
 ## Credenciais
@@ -33,7 +33,7 @@ Para rodar contra o front local, suba o front antes com `npm start` no projeto `
 
 Os ambientes ficam em `playwright.config.js` (constante `AMBIENTES`), escolhidos pela variável `AMBIENTE`.
 
-Cada teste roda em três navegadores: `chromium` (o do Playwright), `chrome` (Google Chrome) e `edge` (Microsoft Edge). Chrome e Edge precisam estar instalados na máquina. Para rodar em um só, use `--project`, por exemplo `npm test -- --project=edge`.
+Cada teste roda em cinco navegadores: `chromium` (o do Playwright), `chrome` (Google Chrome), `edge` (Microsoft Edge), `firefox` e `webkit` (o motor do Safari). Chrome e Edge precisam estar instalados na máquina; Firefox e WebKit são instalados com `npx playwright install firefox webkit`. Para rodar em um só, use `--project`, por exemplo `npm test -- --project=edge`.
 
 ## GitHub Actions
 
