@@ -1,5 +1,12 @@
 const { test, expect } = require('@playwright/test');
-const { exigirCredenciais, credenciais, login, preencherLogin, evidencia } = require('./support/helpers');
+const {
+  exigirCredenciais,
+  credenciais,
+  falhaEsperadaNoWebKit,
+  login,
+  preencherLogin,
+  evidencia,
+} = require('./support/helpers');
 
 test.describe('Login', () => {
   test.beforeEach(async ({ page }) => {
@@ -22,6 +29,7 @@ test.describe('Login', () => {
   });
 
   test('mostra erro com usuário ou senha inválidos', async ({ page }) => {
+    falhaEsperadaNoWebKit();
     await preencherLogin(page, 'usuario-inexistente-playwright', 'senha-errada');
 
     await expect(page.getByRole('alert')).toHaveText('Usuário ou senha inválidos.');
@@ -30,6 +38,7 @@ test.describe('Login', () => {
 
   test('entra no sistema com credenciais válidas', async ({ page }) => {
     exigirCredenciais();
+    falhaEsperadaNoWebKit();
     const { usuario, senha } = credenciais();
 
     await preencherLogin(page, usuario, senha);
@@ -48,6 +57,7 @@ test.describe('Rotas protegidas', () => {
 
   test('acessa a página depois do login', async ({ page }) => {
     exigirCredenciais();
+    falhaEsperadaNoWebKit({ excetoNoWindows: true });
 
     await login(page);
     await page.goto('/relatorio-adocoes');

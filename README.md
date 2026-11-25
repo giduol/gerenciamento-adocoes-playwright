@@ -35,6 +35,12 @@ Os ambientes ficam em `playwright.config.js` (constante `AMBIENTES`), escolhidos
 
 Cada teste roda em cinco navegadores: `chromium` (o do Playwright), `chrome` (Google Chrome), `edge` (Microsoft Edge), `firefox` e `webkit` (o motor do Safari). Chrome e Edge precisam estar instalados na máquina; Firefox e WebKit são instalados com `npx playwright install firefox webkit`. Para rodar em um só, use `--project`, por exemplo `npm test -- --project=edge`.
 
+### Falha conhecida no WebKit
+
+O domínio `code.run` da Northflank está na [Public Suffix List](https://publicsuffix.org/list/public_suffix_list.dat) (`*.code.run`), e o WebKit (motor do Safari) não guarda cookies nesse tipo de domínio. Sem o cookie de CSRF, o login é recusado com HTTP 403. Por isso, os 3 testes que fazem login estão marcados como **falha esperada** no WebKit, com `falhaEsperadaNoWebKit()`: eles contam como sucesso enquanto falharem. A exceção é o teste que faz login pela API (`login()`), que no Windows funciona e por isso só é marcado nos outros sistemas.
+
+A correção é usar um domínio próprio no app. Quando isso acontecer, esses testes passam a funcionar e o Playwright os acusa como erro ("expected to fail, but passed"). Nesse momento, remova as chamadas a `falhaEsperadaNoWebKit()`.
+
 ## GitHub Actions
 
 O workflow `.github/workflows/playwright.yml` roda os testes contra produção a cada push e pull request na `main`. Também dá para rodar manualmente na aba **Actions** (botão **Run workflow**).

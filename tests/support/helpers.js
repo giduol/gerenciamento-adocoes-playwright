@@ -11,6 +11,20 @@ function exigirCredenciais() {
   test.skip(!usuario || !senha, 'Sem credenciais no .env: teste ignorado');
 }
 
+// Falha conhecida: o domínio code.run da Northflank está na Public Suffix List (*.code.run),
+// e o WebKit (motor do Safari) não guarda cookies nesse tipo de domínio. Sem o cookie de CSRF,
+// o login é recusado (HTTP 403). Marca o teste como falha esperada no WebKit; quando o app
+// passar a usar um domínio próprio, o Playwright avisa que o teste voltou a passar, e esta
+// marcação pode ser removida.
+// Com { excetoNoWindows: true }, não marca no Windows: lá o WebKit aceita o cookie quando o
+// login é feito pela API (login()), só recusa no formulário da tela.
+function falhaEsperadaNoWebKit({ excetoNoWindows = false } = {}) {
+  test.fail(
+    test.info().project.name === 'webkit' && !(excetoNoWindows && process.platform === 'win32'),
+    'WebKit não guarda cookies em *.code.run (Public Suffix List): login recusado com 403',
+  );
+}
+
 // Faz login pela API (mais rápido que pela tela). Os cookies ficam no navegador do teste.
 // Segue o mesmo fluxo do front: pega o token CSRF e faz o login enviando o token no header.
 async function login(page) {
@@ -46,4 +60,4 @@ async function evidencia(page, nome = 'evidência') {
   });
 }
 
-module.exports = { credenciais, exigirCredenciais, login, preencherLogin, evidencia };
+module.exports = { credenciais, exigirCredenciais, falhaEsperadaNoWebKit, login, preencherLogin, evidencia };
